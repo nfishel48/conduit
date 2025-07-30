@@ -19,17 +19,17 @@ export class Server {
   public async start(startListener: boolean = true): Promise<void> {
     console.log("Starting Conduit bridge server...");
 
-    // 1. Fetch the remote GraphQL schema
+    // Fetch the remote GraphQL schema
     const schema = await this.graphqlService.fetchSchema();
 
-    // 2. Create tools from the schema and store them
+    // Create tools from the schema and store them
     const toolFactory = new ToolFactory(
       this.graphqlService.getApiUrl(),
       this.graphqlService.getApiToken(),
     );
     await this.setupTools(toolFactory, schema);
 
-    // 3. Setup the HTTP endpoint
+    // Setup the HTTP endpoint
     this.app.post("/mcp", async (req, res) => {
       try {
         const message = req.body;
@@ -70,7 +70,7 @@ export class Server {
       }
     });
 
-    // 4. Start listening for requests (optional for testing)
+    //Start listening for requests (optional for testing)
     if (startListener) {
       this.app.listen(this.port, () => {
         console.log(

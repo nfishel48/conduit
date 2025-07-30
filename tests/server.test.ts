@@ -10,8 +10,9 @@ import {
 import request from "supertest";
 import { Express } from "express";
 import {
-  mockIntrospectionResult,
-  mockUserExecutionResult,
+  mockGraphQLResponses,
+  createCustomUserResult,
+  createCustomErrorResponse,
 } from "./mocks/mockGraphQL";
 import { createApp } from "../src/index.js";
 
@@ -33,10 +34,7 @@ describe("Conduit Server E2E", () => {
     vi.clearAllMocks();
 
     // Mock the introspection query response for server initialization
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockIntrospectionResult,
-    });
+    mockFetch.mockResolvedValueOnce(mockGraphQLResponses.introspection);
 
     // Create a new app instance for each test with unique port
     const port = (3000 + Math.floor(Math.random() * 1000)).toString();
@@ -124,10 +122,7 @@ describe("Conduit Server E2E", () => {
 
   it("should correctly execute a tool and return the result", async () => {
     // Arrange: Mock the tool execution query
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUserExecutionResult,
-    });
+    mockFetch.mockResolvedValueOnce(mockGraphQLResponses.userCreation);
 
     // Step 1: Initialize the MCP session
     const initResponse = await request(app)
@@ -212,10 +207,7 @@ describe("Conduit Server E2E", () => {
   it("should handle GraphQL errors properly", async () => {
     // Create a fresh app instance to avoid mock interference
     vi.clearAllMocks();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockIntrospectionResult,
-    });
+    mockFetch.mockResolvedValueOnce(mockGraphQLResponses.introspection);
 
     const port = (3000 + Math.floor(Math.random() * 1000)).toString();
     const freshApp = await createApp(
@@ -225,12 +217,7 @@ describe("Conduit Server E2E", () => {
     );
 
     // Arrange: Mock a GraphQL error response
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        errors: [{ message: "User already exists" }],
-      }),
-    });
+    mockFetch.mockResolvedValueOnce(mockGraphQLResponses.graphqlError);
 
     // Step 1: Initialize the MCP session
     await request(freshApp)
@@ -288,10 +275,7 @@ describe("Conduit Server E2E", () => {
   it("should handle network errors properly", async () => {
     // Create a fresh app instance to avoid mock interference
     vi.clearAllMocks();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockIntrospectionResult,
-    });
+    mockFetch.mockResolvedValueOnce(mockGraphQLResponses.introspection);
 
     const port = (3000 + Math.floor(Math.random() * 1000)).toString();
     const freshApp = await createApp(

@@ -1,125 +1,32 @@
+import {
+  buildSchema,
+  introspectionFromSchema,
+  type IntrospectionQuery,
+} from "graphql";
+
+// Simple schema for E2E testing
+const SIMPLE_SCHEMA_SDL = `
+  type Query {
+    getUser(id: ID!): User
+  }
+
+  type Mutation {
+    createUser(name: String!): User
+  }
+
+  type User {
+    id: ID!
+    name: String!
+  }
+`;
+
+// Create the simple schema and introspection data
+const simpleSchema = buildSchema(SIMPLE_SCHEMA_SDL);
+const simpleIntrospectionData = introspectionFromSchema(simpleSchema);
+
+// Export the mock data
 export const mockIntrospectionResult = {
-  data: {
-    __schema: {
-      queryType: { name: "Query" },
-      mutationType: { name: "Mutation" },
-      subscriptionType: null,
-      types: [
-        {
-          kind: "OBJECT",
-          name: "Query",
-          description: null,
-          fields: [
-            {
-              name: "getUser",
-              description: "Retrieves a single user by their ID.",
-              args: [
-                {
-                  name: "id",
-                  description: "The user ID",
-                  type: {
-                    kind: "NON_NULL",
-                    ofType: { kind: "SCALAR", name: "ID" },
-                  },
-                  defaultValue: null,
-                },
-              ],
-              type: { kind: "OBJECT", name: "User" },
-              isDeprecated: false,
-              deprecationReason: null,
-            },
-          ],
-          inputFields: null,
-          interfaces: [],
-          enumValues: null,
-          possibleTypes: null,
-        },
-        {
-          kind: "OBJECT",
-          name: "Mutation",
-          description: null,
-          fields: [
-            {
-              name: "createUser",
-              description: "Creates a new user.",
-              args: [
-                {
-                  name: "name",
-                  description: "The user name",
-                  type: {
-                    kind: "NON_NULL",
-                    ofType: { kind: "SCALAR", name: "String" },
-                  },
-                  defaultValue: null,
-                },
-              ],
-              type: { kind: "OBJECT", name: "User" },
-              isDeprecated: false,
-              deprecationReason: null,
-            },
-          ],
-          inputFields: null,
-          interfaces: [],
-          enumValues: null,
-          possibleTypes: null,
-        },
-        {
-          kind: "OBJECT",
-          name: "User",
-          description: "A user object",
-          fields: [
-            {
-              name: "id",
-              description: "The user ID",
-              args: [],
-              type: {
-                kind: "NON_NULL",
-                ofType: { kind: "SCALAR", name: "ID" },
-              },
-              isDeprecated: false,
-              deprecationReason: null,
-            },
-            {
-              name: "name",
-              description: "The user name",
-              args: [],
-              type: {
-                kind: "NON_NULL",
-                ofType: { kind: "SCALAR", name: "String" },
-              },
-              isDeprecated: false,
-              deprecationReason: null,
-            },
-          ],
-          inputFields: null,
-          interfaces: [],
-          enumValues: null,
-          possibleTypes: null,
-        },
-        {
-          kind: "SCALAR",
-          name: "ID",
-          description: "The `ID` scalar type represents a unique identifier",
-          fields: null,
-          inputFields: null,
-          interfaces: null,
-          enumValues: null,
-          possibleTypes: null,
-        },
-        {
-          kind: "SCALAR",
-          name: "String",
-          description: "The `String` scalar type represents textual data",
-          fields: null,
-          inputFields: null,
-          interfaces: null,
-          enumValues: null,
-          possibleTypes: null,
-        },
-      ],
-      directives: [],
-    },
-  },
+  data: simpleIntrospectionData,
 };
 
 export const mockUserExecutionResult = {
@@ -130,3 +37,95 @@ export const mockUserExecutionResult = {
     },
   },
 };
+
+// Additional mock data for E2E testing scenarios
+export const mockGraphQLResponses = {
+  // Success responses
+  introspection: {
+    ok: true,
+    json: async () => mockIntrospectionResult,
+  },
+
+  userCreation: {
+    ok: true,
+    json: async () => mockUserExecutionResult,
+  },
+
+  // Error responses
+  networkError: {
+    ok: false,
+    status: 500,
+    statusText: "Internal Server Error",
+  },
+
+  graphqlError: {
+    ok: true,
+    json: async () => ({
+      errors: [{ message: "User already exists" }],
+    }),
+  },
+
+  authError: {
+    ok: true,
+    json: async () => ({
+      errors: [
+        {
+          message: "You must be authenticated to perform this action.",
+          extensions: { code: "UNAUTHENTICATED" },
+        },
+      ],
+    }),
+  },
+
+  rateLimitError: {
+    ok: true,
+    json: async () => ({
+      errors: [
+        {
+          message: "Rate limit exceeded",
+          extensions: { code: "RATE_LIMITED", retryAfter: 60 },
+        },
+      ],
+    }),
+  },
+} as const;
+
+// Helper functions
+export function createSimpleUserExecutionResult(userData: {
+  id: string;
+  name: string;
+}) {
+  return {
+    data: {
+      createUser: userData,
+    },
+  };
+}
+
+export function createMockErrorResponse(
+  errors: Array<{ message: string; extensions?: Record<string, any> }>,
+): {
+  errors: Array<{ message: string; extensions?: Record<string, any> }>;
+} {
+  return { errors };
+}
+
+export function createCustomUserResult(id: string, name: string) {
+  return {
+    ok: true,
+    json: async () => createSimpleUserExecutionResult({ id, name }),
+  };
+}
+
+export function createCustomErrorResponse(message: string, code?: string) {
+  return {
+    ok: true,
+    json: async () =>
+      createMockErrorResponse([
+        {
+          message,
+          ...(code && { extensions: { code } }),
+        },
+      ]),
+  };
+}
