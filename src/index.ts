@@ -1,56 +1,94 @@
-import { Server } from "./server.js";
-
-// Load environment variables (ensure you have a .env file for local development)
-const PORT = process.env.PORT || "3000";
-const GRAPHQL_API_URL = process.env.GRAPHQL_API_URL;
-const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN;
-
-/**
- * Create and return the server instance for testing
- */
-export async function createApp(
-  port?: string,
-  apiUrl?: string,
-  apiToken?: string,
-) {
-  const serverPort = port || PORT;
-  const serverApiUrl = apiUrl || GRAPHQL_API_URL;
-  const serverApiToken = apiToken || API_AUTH_TOKEN;
-
-  if (!serverApiUrl) {
-    throw new Error("GRAPHQL_API_URL is required");
-  }
-
-  const server = new Server(serverPort, serverApiUrl, serverApiToken);
-  await server.start(false); // Don't start HTTP listener in test mode
-  return server.getApp();
-}
+import { serverLogger } from "./utils/logger.ts";
+import express from "express";
+import { handleMcpRequest, setupTools } from "./server.ts";
+import dotenv from "dotenv";
+dotenv.config();
 
 /**
- * Main application bootstrap function.
+ * Main entry point for the Conduit application
  */
-async function bootstrap() {
+async function main(): Promise<void> {
   try {
-    if (!GRAPHQL_API_URL) {
-      console.error("FATAL: GRAPHQL_API_URL environment variable is not set.");
-      process.exit(1);
+    const app = express();
+    const port = process.env.PORT || 3000;
+
+    //Create the tools map
+    const toolsMap = await setupTools();
+
+    // Add JSON middleware for MCP endpoint
+    app.use(express.json());
+
+    app.post("/mcp", async (req, res) => {
+      try {
+        const message = req.body;
+        console.info(`📨 Received MCP request: ${message.method}`);
+
+        // Basic JSON-RPC validation
+        if (!message.jsonrpc || message.jsonrpc !== "2.0") {
+          console.warn(`⚠️  Invalid JSON-RPC request from ${req.ip}`);
+          res.json({
+            jsonrpc: "2.0",
+            id: message.id || null,
+            error: {
+              code: -32600,
+              message: "Invalid JSON-RPC request",
+            },
+          });
+          return;
+        }
+
+        // Handle the request
+        const response = await handleMcpRequest(message, toolsMap);
+
+        // Handle notifications (no response)
+        if (response === null) {
+          console.log(`📤 Notification processed: ${message.method}`);
+          res.status(200).end();
+          return;
+        }
+
+        console.debug(`📤 Sending MCP response for: ${message.method}`);
+        res.json(response);
+      } catch (error) {
+        console.error(
+          `❌ Error handling MCP request: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+        res.json({
+          jsonrpc: "2.0",
+          id: req.body?.id || null,
+          error: {
+            code: -32603,
+            message: "Internal server error",
+          },
+        });
+      }
+    });
+
+    app.listen(port, () => {
+      console.info(`🏗️  Server initialized with port ${port}`);
+    });
+  } catch (error) {
+    serverLogger.error(
+      `❌ Failed to start Conduit application: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
+
+    if (error instanceof Error && error.stack) {
+      serverLogger.debug(`Stack trace: ${error.stack}`);
     }
 
-    const server = new Server(PORT, GRAPHQL_API_URL, API_AUTH_TOKEN);
-    await server.start();
-    console.log(
-      `🚀 Conduit bridge is successfully running on http://localhost:${PORT}`,
-    );
-  } catch (error) {
-    console.error("Failed to start the Conduit bridge server:", error);
+    // Exit with error code
     process.exit(1);
   }
 }
 
-// Only run bootstrap if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  bootstrap();
-}
-
-// Export for testing
-export { createApp as viteNodeApp };
+// Start the application
+main().catch((error) => {
+  console.error(
+    `💥 Critical startup error: ${
+      error instanceof Error ? error.message : "Unknown error"
+    }`,
+  );
+  process.exit(1);
+});

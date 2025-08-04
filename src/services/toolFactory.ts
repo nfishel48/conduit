@@ -7,7 +7,6 @@ import {
   type GraphQLList,
 } from "graphql";
 import { z } from "zod";
-import { JsonSchema } from "../types.js";
 
 export class ToolFactory {
   private readonly apiUrl: string;
@@ -148,7 +147,7 @@ export class ToolFactory {
   }
 
   private zodToJsonSchema(zodSchema: z.ZodObject<any>): any {
-    const shape = zodSchema._def.shape();
+    const shape = zodSchema._def.shape;
     const properties: Record<string, any> = {};
     const required: string[] = [];
 
@@ -169,7 +168,7 @@ export class ToolFactory {
   }
 
   private convertZodTypeToJsonSchema(zodType: z.ZodType): any {
-    const typeName = zodType._def.typeName;
+    const typeName = (zodType._def as any).typeName;
 
     switch (typeName) {
       case "ZodString":
@@ -182,12 +181,13 @@ export class ToolFactory {
         return {
           type: "array",
           items: this.convertZodTypeToJsonSchema(
-            (zodType as z.ZodArray<any>)._def.type,
+            (zodType as z.ZodArray<any>)._def.type as unknown as z.ZodType,
           ),
         };
       case "ZodOptional":
         return this.convertZodTypeToJsonSchema(
-          (zodType as z.ZodOptional<any>)._def.innerType,
+          (zodType as z.ZodOptional<any>)._def
+            .innerType as unknown as z.ZodType,
         );
       default:
         return { type: "string", description: `Unknown type: ${typeName}` };
