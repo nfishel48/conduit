@@ -12,6 +12,9 @@ interface Tool {
   handler: (args: any) => Promise<any>;
 }
 
+// Track initialization state
+let isInitialized = false;
+
 export async function handleMcpRequest(
   message: any,
   toolsMap: Map<string, Tool>,
@@ -19,7 +22,7 @@ export async function handleMcpRequest(
   // Handle initialize request
   if (message.method === "initialize") {
     console.info("🔄 Initializing MCP connection...");
-    let initialized = true;
+    isInitialized = true;
     console.info("✅ MCP connection initialized");
     return {
       jsonrpc: "2.0",
@@ -48,6 +51,7 @@ export async function handleMcpRequest(
 
   // Check if initialized for other methods (except initialize itself)
   if (
+    !isInitialized &&
     message.method !== "initialize" &&
     message.method !== "notifications/initialized"
   ) {
