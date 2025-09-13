@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/nfishel48-conduit-badge.png)](https://mseep.ai/app/nfishel48-conduit)
+
 # Conduit 🌉
 
 **Unchain your GraphQL API for Large Language Models.**
