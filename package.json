@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
-    "@modelcontextprotocol/sdk": "^1.17.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "@types/node-fetch": "^2.6.13",
     "@types/ws": "^8.18.1",
     "dotenv": "^17.2.1",
